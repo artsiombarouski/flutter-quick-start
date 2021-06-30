@@ -15,12 +15,16 @@ class QsAppParams {
   /// {@macro flutter.widgets.widgetsApp.onGenerateRoute}
   final RouteFactory? onGenerateRoute;
 
+  /// {@macro flutter.widgets.widgetsApp.navigatorObservers}
+  final List<NavigatorObserver>? navigatorObservers;
+
   QsAppParams({
     this.key,
     this.home,
     this.theme,
     this.initialRoute,
     this.onGenerateRoute,
+    this.navigatorObservers,
   });
 }
 
@@ -30,10 +34,10 @@ class QsApp extends StatefulWidget {
   const QsApp({Key? key, required this.params}) : super(key: key);
 
   @override
-  _QsAppState createState() => _QsAppState();
+  QsAppState createState() => QsAppState();
 
-  static NavigatorState rootNavigator(BuildContext context) {
-    _QsAppState? appState = context.findRootAncestorStateOfType<_QsAppState>();
+  static QsAppState of(BuildContext context) {
+    QsAppState? appState = context.findRootAncestorStateOfType<QsAppState>();
 
     assert(() {
       if (appState == null) {
@@ -41,11 +45,19 @@ class QsApp extends StatefulWidget {
       }
       return true;
     }());
-    return appState!.navigatorKey.currentState!;
+    return appState!;
+  }
+
+  static NavigatorState navigator(BuildContext context, {bool root = true}) {
+    if (root) {
+      return of(context).navigatorKey.currentState!;
+    } else {
+      return Navigator.of(context);
+    }
   }
 }
 
-class _QsAppState extends State<QsApp> {
+class QsAppState extends State<QsApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey();
 
   @override
@@ -57,6 +69,10 @@ class _QsAppState extends State<QsApp> {
       navigatorKey: navigatorKey,
       initialRoute: widget.params.initialRoute,
       onGenerateRoute: widget.params.onGenerateRoute,
+      navigatorObservers: [
+        if(widget.params.navigatorObservers != null)
+          ...widget.params.navigatorObservers!,
+      ],
     );
   }
 }

@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quick_start/components/app/qs_app.dart';
 import 'package:flutter_quick_start/components/navigation/qs_navigation.dart';
 import 'package:flutter_quick_start/qs.dart';
+import 'package:flutter_quick_start/services/audio_player/audio_player_service.dart';
+import 'package:flutter_quick_start/services/audio_player/just_audio_service.dart';
+import 'package:flutter_quick_start/widgets/qs_sliver.dart';
 import 'package:flutter_quick_start/widgets/qs_svg.dart';
+import 'package:flutter_quick_start_example/player_example.dart';
+
+final audioService = AudioPlayerService(provider: JustAudioProvider());
 
 void main() async {
   await Qs.init();
+  await audioService.init();
   runApp(MyApp());
 }
 
@@ -24,6 +31,12 @@ class _MyAppState extends State<MyApp> {
             return MaterialPageRoute(
               settings: settings,
               builder: (context) => TestRootNavigationPage(),
+            );
+          }
+          if (settings.name == '/player') {
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => PlayerExample(),
             );
           }
           return MaterialPageRoute(
@@ -108,6 +121,12 @@ class TempListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
+        sliverBox(
+          TextButton(
+            onPressed: () => QsApp.navigator(context).pushNamed("/player"),
+            child: Text('Player'),
+          ),
+        ),
         SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) => InkWell(
@@ -138,7 +157,7 @@ class IndexedPage extends StatelessWidget {
       child: InkWell(
         child: Text("Page #$index"),
         onTap: () {
-          QsApp.rootNavigator(context).pushNamed('/test');
+          QsApp.navigator(context).pushNamed('/test');
         },
       ),
     );
@@ -158,7 +177,7 @@ class InnerPage extends StatelessWidget {
         child: InkWell(
           child: Text("Page #$index"),
           onTap: () {
-            QsApp.rootNavigator(context).pushNamed('/test');
+            QsApp.navigator(context).pushNamed('/test');
           },
         ),
       ),

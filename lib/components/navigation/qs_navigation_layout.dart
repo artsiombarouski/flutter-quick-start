@@ -8,8 +8,14 @@ import 'package:flutter_quick_start/components/navigation/qs_navigation_type.dar
 import 'package:flutter_quick_start/qs.dart';
 import 'package:page_transition/page_transition.dart';
 
+/// Builders
+
 abstract class QsNavigationAppBarBuilder {
   Widget? build(QsNavigationBuilderParams params);
+
+  void initState() {}
+
+  void dispose() {}
 }
 
 abstract class QsNavigationBarBuilder {
@@ -17,6 +23,10 @@ abstract class QsNavigationBarBuilder {
     QsNavigationBuilderParams params,
     ValueChanged<String> callback,
   );
+
+  void initState() {}
+
+  void dispose() {}
 }
 
 abstract class QsNavigationDrawerBuilder {
@@ -24,16 +34,26 @@ abstract class QsNavigationDrawerBuilder {
     QsNavigationBuilderParams params,
     ValueChanged<String> callback,
   );
+
+  void initState() {}
+
+  void dispose() {}
 }
 
 abstract class QsOverflowChildrenBuilder {
   List<Widget>? build(QsNavigationBuilderParams params);
+
+  void initState() {}
+
+  void dispose() {}
 }
 
 typedef Widget? QsNavigationPageBuilder(
   QsNavigationBuilderParams params,
   RouteSettings settings,
 );
+
+/// Params
 
 class QsNavigationLayoutParams {
   final List<QsNavigationPage> pages;
@@ -82,43 +102,55 @@ class QsNavigationLayout extends StatefulWidget {
   _QsNavigationLayoutState createState() => _QsNavigationLayoutState();
 }
 
-class HistoryNavigatorObserver extends NavigatorObserver {
-  List<Route<dynamic>> routeStack = [];
+class QsNavigatorObserver extends NavigatorObserver {
+  final List<Route<dynamic>> _routeStack = [];
 
   @override
   void didPush(Route route, Route? previousRoute) {
-    routeStack.add(route);
+    _routeStack.add(route);
   }
 
   @override
   void didPop(Route route, Route? previousRoute) {
-    routeStack.removeLast();
+    _routeStack.removeLast();
   }
 
   @override
   void didRemove(Route route, Route? previousRoute) {
-    routeStack.removeLast();
+    _routeStack.removeLast();
   }
 
   @override
   void didReplace({Route? newRoute, Route? oldRoute}) {
     if (newRoute != null) {
-      routeStack.removeLast();
-      routeStack.add(newRoute);
+      _routeStack.removeLast();
+      _routeStack.add(newRoute);
     }
   }
 }
 
 class _QsNavigationLayoutState extends State<QsNavigationLayout> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey();
-  final HistoryNavigatorObserver _navigatorObserver =
-      HistoryNavigatorObserver();
+  final QsNavigatorObserver _navigatorObserver = QsNavigatorObserver();
   String? _currentPage;
 
   @override
   void initState() {
     _currentPage = widget.params?.initialPage ?? widget.params?.pages[0].path;
+    widget.params?.appBarBuilder?.initState();
+    widget.params?.navigationBarBuilder?.initState();
+    widget.params?.navigationDrawerBuilder?.initState();
+    widget.params?.overflowChildrenBuilder?.initState();
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    widget.params?.appBarBuilder?.dispose();
+    widget.params?.navigationBarBuilder?.dispose();
+    widget.params?.navigationDrawerBuilder?.dispose();
+    widget.params?.overflowChildrenBuilder?.dispose();
+    super.dispose();
   }
 
   @override
@@ -133,7 +165,7 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
   void _updatePage(String path) {
     setState(() {
       _currentPage = path;
-      _navigatorKey.currentState?.pushNamed(path);
+      _navigatorKey.currentState?.pushReplacementNamed(path);
     });
   }
 
@@ -150,10 +182,10 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
       layoutParams: widget.params,
     );
 
-    final Widget? appBar = widget.params?.appBarBuilder?.build(
+    final appBar = widget.params?.appBarBuilder?.build(
       builderParams,
     );
-    final Widget? navigationBar = widget.params?.navigationBarBuilder?.build(
+    final navigationBar = widget.params?.navigationBarBuilder?.build(
       builderParams,
       _updatePage,
     );
@@ -161,24 +193,26 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
       builderParams,
     );
 
-    final body = NestedScrollView(
+    final content = NestedScrollView(
       body: Navigator(
         key: _navigatorKey,
         initialRoute: _currentPage,
         observers: [_navigatorObserver],
         onGenerateRoute: (RouteSettings settings) {
-          print("onGenerateRoute: ${settings.name}");
-          final Widget? targetPage = widget.params?.pages
-                  .firstWhereOrNull((element) => settings.name == element.path)
-                  ?.builder
-                  ?.call(builderParams, settings) ??
-              widget.params?.navigationPageBuilder
-                  ?.call(builderParams, settings);
+          Widget? targetPage = widget.params?.pages
+              .firstWhereOrNull((element) => settings.name == element.path)
+              ?.builder
+              ?.call(builderParams, settings);
+          final isRootNavigationPage = targetPage != null;
+          if (targetPage == null) {
+            targetPage = widget.params?.navigationPageBuilder
+                ?.call(builderParams, settings);
+          }
           if (targetPage != null) {
-            if (kIsMobile) {
+            if (kIsMobile && !isRootNavigationPage) {
               return MaterialPageRoute(
                 settings: settings,
-                builder: (context) => targetPage,
+                builder: (context) => targetPage!,
               );
             }
             return PageTransition(
@@ -189,10 +223,6 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
           }
           return null;
         },
-        onPopPage: (route, settings) {
-          print("onPopPage: " + settings.name);
-          return true;
-        },
       ),
       headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
         return [
@@ -201,51 +231,38 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
       },
     );
 
-    final List<Widget> children;
+    final Widget body;
     if (type == QsNavigationType.Desktop) {
       final drawerNavigation = widget.params?.navigationDrawerBuilder?.build(
         builderParams,
         _updatePage,
       );
-
-      children = [
-        Align(
-          alignment: Alignment.center,
-          child: ConstrainedBox(
-            constraints: BoxConstraints.tightFor(width: 1200),
-            child: Row(
-              children: [
-                if (drawerNavigation != null)
-                  Expanded(
-                    flex: 1,
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: drawerNavigation,
-                    ),
-                  ),
+      body = Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: BoxConstraints.tightFor(width: 1200),
+          child: Row(
+            children: [
+              if (drawerNavigation != null)
                 Expanded(
-                  flex: 2,
-                  child: body,
+                  flex: 1,
+                  child: drawerNavigation,
                 ),
-              ],
-            ),
+              Expanded(
+                flex: 2,
+                child: content,
+              ),
+            ],
           ),
         ),
-      ];
+      );
     } else {
-      children = [
-        body,
-        if (navigationBar != null && type == QsNavigationType.Mobile)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: navigationBar,
-          ),
-      ];
+      body = content;
     }
 
     return Stack(
       children: [
-        ...children,
+        body,
         if (overflow != null)
           Align(
             alignment: Alignment.center,
@@ -255,6 +272,11 @@ class _QsNavigationLayoutState extends State<QsNavigationLayout> {
                 children: overflow,
               ),
             ),
+          ),
+        if (navigationBar != null && type == QsNavigationType.Mobile)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: navigationBar,
           ),
       ],
     );

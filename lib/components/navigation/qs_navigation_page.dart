@@ -12,5 +12,5 @@ class QsNavigationPage {
   final String? title;
   final Widget? icon;
 
-  QsNavigationPage(this.path, {required this.builder, this.title, this.icon});
+  QsNavigationPage(this.path, {this.builder, this.title, this.icon});
 }

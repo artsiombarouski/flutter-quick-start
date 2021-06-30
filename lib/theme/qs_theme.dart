@@ -11,6 +11,7 @@ class Dimensions {
 
   static const defPadding = 16.0;
   static const defPaddingHalf = defPadding / 2;
+  static const defLargePadding = 24.0;
   static const musicBarHeight = 64.0;
   static const musicCoverRadiusSmall = 4.0;
   static const musicCoverRadiusBig = 24.0;
